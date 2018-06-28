@@ -318,6 +318,14 @@ void MKLDNNReLULayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top
         InitReLUBwd(top, propagate_down, bottom);
     }
 
+    //For DenseNet models, bypass the ReLU layers before the 1x1 Convolution layers within DenseNet's Composite Layers (CPL). 
+    if (strstr(this->layer_param_.name().c_str(), "x1")!=NULL || ((strstr(this->layer_param_.name().c_str(), "blk")!=NULL) && (strstr(this->layer_param_.name().c_str(), "relu5_blk")==NULL)) ) {
+        return; 
+    }
+    //For DenseNet models, bypass the ReLU layers before the 3x3 Convolution layers within DenseNet's Composite Layers (CPL). 
+    if (strstr(this->layer_param_.name().c_str(), "x2")!=NULL) { 
+        return;
+    }
     bwd_top_diff->sync_before_read();
     //For MKLDNN, it always create two memory for input and output
     //For Intel Caffe, if we set the inplace flag to true, input and output will use one same buffer

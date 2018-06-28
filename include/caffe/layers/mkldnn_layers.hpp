@@ -169,7 +169,8 @@ private:
     shared_ptr<convolution_backward_weights::primitive_desc> convBwdWeights_pd;
     MKLDNNPrimitive<Dtype> convFwd, convBwdData, convBwdWeights;
     shared_ptr<memory> fwd_top_data_memory, bwdd_bottom_diff_memory
-                    , bwdw_weights_diff_memory,  bwdw_bias_diff_memory;
+                    , bwdw_weights_diff_memory,  bwdw_bias_diff_memory
+                    , bn_src, bn_mean, bn_var;
     shared_ptr<primitive> fwd_bottom_data_primitive, fwd_weights_data_primitive, fwd_bias_data_primitive
                     , bwdd_top_diff_primitive, bwdd_weights_data_primitive
                     , bwdw_top_diff_primitive, bwdw_bottom_data_primitive;

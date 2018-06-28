@@ -43,6 +43,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "caffe/layers/mkldnn_layers.hpp"
 
 namespace caffe {
+shared_ptr<memory> bn_src_tmp; 
+shared_ptr<memory> bn_mean_tmp; 
+shared_ptr<memory> bn_var_tmp; 
+shared_ptr<memory> conv_dst; 
+shared_ptr<memory> next_mean;
+shared_ptr<memory> next_var; 
+shared_ptr<memory> diff_src; 
+shared_ptr<memory> next_scale_shift; 
+
 
 template <typename Dtype>
 void MKLDNNBatchNormLayer<Dtype>::InitStatsBatchVars(int batch_size) {
@@ -226,7 +235,21 @@ void MKLDNNBatchNormLayer<Dtype>::InitBatchNorm(const vector<Blob<Dtype>*>& bott
     input_stats_md->data.dims[0] = stats_batch_size_;
 
     // ---- Initialize BatchNorm primitive descriptor -------------
-    batch_normalization_forward::desc BatchNormFwd_desc(propagation, *input_stats_md, eps_, flags);
+    bool mean_variance_fusion;
+    bool norm_fusion;
+    // For DenseNet models, combine mean_variance/norm operations with its preceding/following Convolution layers if fusion flags are true.
+    // x2 means BN layers before 3x3 Convolution layers within DenseNet's Composite Layers (CPL).
+    // x1 means BN layers before 1x1 Convolution layers within DenseNet's Composite Layers (CPL).  
+    if (strstr(this->layer_param_.name().c_str(), "x2") != NULL) 
+      mean_variance_fusion = true;
+    else
+	    mean_variance_fusion = false;
+    if (strstr(this->layer_param_.name().c_str(), "x1") != NULL || strstr(this->layer_param_.name().c_str(), "conv2_blk") != NULL || (strstr(this->layer_param_.name().c_str(), "conv3_blk") != NULL))
+	    norm_fusion = true;
+    else
+	    norm_fusion = false;
+
+    batch_normalization_forward::desc BatchNormFwd_desc(propagation, *input_stats_md, eps_, flags, mean_variance_fusion, norm_fusion);
     // ---- Determining engine to use -----------------------
     std::string subengines = this->layer_param_.engine();
     if (subengines == "" || subengines == "MKLDNN")
@@ -361,6 +384,11 @@ void MKLDNNBatchNormLayer<Dtype>::InitBatchNormFwdPrimitive(int idx) {
             }
         }
     }
+    if (idx == 0){
+      bn_src_tmp = input_stats[0];
+      bn_mean_tmp = mean_memory[0];
+      bn_var_tmp = variance_memory[0];
+    }
 }
 
 template <typename Dtype>
@@ -398,7 +426,10 @@ void MKLDNNBatchNormLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
       
       PERFORMANCE_EVENT_ID_INIT(perf_id_fw_, PERFORMANCE_MKLDNN_NAME("FW"));
       PERFORMANCE_MEASUREMENT_BEGIN();
-      BatchNormFwd[stats_batch_idx].submit();
+      // For DenseNet models, bypass the BatchNorm layers after the 1x1 Convolution layers within DenseNet's Composite Layers (CPL). 
+      // x2 means BN layers before 3x3 Convolution layers within DenseNet's Composite Layers (CPL).  
+      if (strstr(this->layer_param_.name().c_str(), "x2")==NULL) 
+        BatchNormFwd[stats_batch_idx].submit();
       PERFORMANCE_MEASUREMENT_END_ID(perf_id_fw_);
 
       if (this->phase_ == TRAIN && !use_global_stats_) {
@@ -466,9 +497,23 @@ void MKLDNNBatchNormLayer<Dtype>::InitBatchNormBwd(
     output_stats_md->data.dims[0] = stats_batch_size_;
 
     // ---- Initialize bnrm primitive descriptor -------------
+    bool x1_gamma_beta_fusion;
+    bool x2_gamma_beta_fusion;
+    // x2 means BN layers before 3x3 Convolution layers within DenseNet's Composite Layers (CPL).    
+    // x1 means BN layers before 1x1 Convolution layers within DenseNet's Composite Layers (CPL).   
+    // For DenseNet models, combine gamma/beta operations with its preceding/following Convolution layers if fusion flags are true;
+    if (strstr(this->layer_param_.name().c_str(), "x2") != NULL) 
+      x2_gamma_beta_fusion = true;
+    else
+      x2_gamma_beta_fusion = false;
+    if (strstr(this->layer_param_.name().c_str(), "x1") != NULL || ((strstr(this->layer_param_.name().c_str(), "blk") != NULL) && (strstr(this->layer_param_.name().c_str(), "conv5_blk") == NULL)))
+      x1_gamma_beta_fusion = true;
+    else
+      x1_gamma_beta_fusion = false;
+
     batch_normalization_backward::desc BatchNormBwd_desc(prop_kind::backward,
             *top_diff_stats_md, *output_stats_md, eps_,
-            flags);
+            flags, x1_gamma_beta_fusion, x2_gamma_beta_fusion);
     // ---- Determining engine to use -----------------------
     std::string subengines = this->layer_param_.engine();
     if (subengines == "" || subengines == "MKLDNN")
@@ -535,6 +580,14 @@ void MKLDNNBatchNormLayer<Dtype>::InitBatchNormBwdPrimitive(int idx) {
                     *input_stats[idx], *mean_memory[idx], *variance_memory[idx],
                     *top_diff_stats[idx], *bottom_diff_stats[idx]));
     }
+
+    if (idx == 0){
+      conv_dst = input_stats[0];
+      next_mean = mean_memory[0];
+      next_var = variance_memory[0];
+      diff_src = top_diff_stats[0];
+      next_scale_shift = scaleshift_memory;
+    }
 }
 
 template <typename Dtype>
@@ -577,7 +630,10 @@ void MKLDNNBatchNormLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
         LOG(INFO) << "Debug: Top cpu diff: " << *top[0]->cpu_diff();
       }
 #endif
-      BatchNormBwd[stats_batch_idx].submit();
+      // For DenseNet models, bypass the BatchNorm layers after the 3x3 Convolution layers within DenseNet's Composite Layers (CPL). 
+      // x2 means BN layers before 3x3 Convolution layers within DenseNet's Composite Layers (CPL).   
+      if (strstr(this->layer_param_.name().c_str(), "x2") == NULL) 
+         BatchNormBwd[stats_batch_idx].submit();
 #ifdef DEBUG
       if (bottom[0]->prv_diff() != NULL)
       {

@@ -1,3 +1,6 @@
+We modified Caffe implementation to support BN Fission-n-Fusion using [DenseNet models](https://github.com/shicai/DenseNet-Caffe).
+We tested the execution time on the latest chip multiprocessor (Intel's Skylake-based Xeon processor) by using only single socket.
+
 # Caffe
 [![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
 [![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)

@@ -133,8 +133,7 @@ void MKLDNNSplitLayer<Dtype>::InitSplitBwd(const vector<Blob<Dtype>*>& bottom,
 
   bwd_bottom_diff_.reset(new MKLDNNDiff<Dtype>(
         usr_diff_dst_mpd, prv_diff_dst_mpd, bottom[0], this));
-  bwd_bottom_diff_memory_ = bwd_bottom_diff_->create_output_memory();
-
+  bwd_bottom_diff_memory_ = bwd_bottom_diff_->create_output_memory(false);
   memory::dims top_tz = bottom_tz;
   shared_ptr<memory::primitive_desc> usr_diff_src_mpd(
     new memory::primitive_desc({top_tz, data_type, mfmt_nchw},
