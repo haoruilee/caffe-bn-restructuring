@@ -99,7 +99,7 @@ MLSL_CONTENT_DIR=`echo $ARCHIVE_BASENAME | rev | cut -d "." -f 2- | rev`
 #echo "[Debug] MLSL_CONTENT_DIR value: $MLSL_CONTENT_DIR"
 GITHUB_RELEASE_TAG=v2017.2-Preview
 
-MLSLURL="https://github.com/01org/MLSL/releases/download/$GITHUB_RELEASE_TAG/$ARCHIVE_BASENAME"
+MLSLURL="https://hub.fastgit.xyz/01org/MLSL/releases/download/$GITHUB_RELEASE_TAG/$ARCHIVE_BASENAME"
 #echo "[Debug] MLSL_ROOT value: $MLSL_ROOT"
 VERSION_LINE=`GetVersionName $MLSL_ROOT`
 #echo "[Debug] VERSION_LINE value: $VERSION_LINE"
