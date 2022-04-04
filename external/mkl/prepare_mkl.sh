@@ -79,7 +79,7 @@ ARCHIVE_BASENAME=mklml_lnx_2018.0.1.20171007.tgz
 MKL_CONTENT_DIR=`echo $ARCHIVE_BASENAME | rev | cut -d "." -f 2- | rev`
 GITHUB_RELEASE_TAG=1.0.6
 
-MKLURL="https://github.com/intel/caffe/releases/download/$GITHUB_RELEASE_TAG/$ARCHIVE_BASENAME"
+MKLURL="https://hub.fastgit.xyz/intel/caffe/releases/download/$GITHUB_RELEASE_TAG/$ARCHIVE_BASENAME"
 # there are diffrent MKL lib to be used for GCC and for ICC
 reg='^[0-9]+$'
 VERSION_LINE=`GetVersionName $MKLROOT`
