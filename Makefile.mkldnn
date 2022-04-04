@@ -21,7 +21,7 @@ ifneq (,$(findstring ccache,$(CC)))
 	MKLDNN_CC := $(lastword $(CC))
 endif
 
-MKLDNN_GITHUB := https://github.com/scale-snu/mkldnn-bn-restructuring.git
+MKLDNN_GITHUB := https://hub.fastgit.xyz/scale-snu/mkldnn-bn-restructuring.git
 MKLDNN_CMAKE_FLAGS += $(MKLDNN_SRCDIR) -DCMAKE_INSTALL_PREFIX=$(MKLDNN_INSTALLDIR) -DMKLROOT=${MKL_ROOTDIR} -B$(MKLDNN_BUILDDIR) -DCMAKE_CXX_COMPILER="$(MKLDNN_CXX)" -DCMAKE_C_COMPILER="$(MKLDNN_CC)"
 
 ifeq ("$(wildcard $(MKLDNN_INSTALLDIR)/include/mkldnn.hpp)", "")
